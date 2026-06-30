@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bg)" opacity="0.06"/>
+
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="180" stroke="#3b82f6" stroke-width="2.5" fill="none" opacity="0.15"/>
+
+  <!-- Hub nodes -->
+  <circle cx="256" cy="256" r="32" fill="#3b82f6"/>
+  <circle cx="256" cy="256" r="14" fill="white"/>
+
+  <!-- Spokes -->
+  <g stroke="#3b82f6" stroke-width="2" opacity="0.35">
+    <line x1="256" y1="224" x2="256" y2="76"/>
+    <line x1="256" y1="288" x2="256" y2="436"/>
+    <line x1="224" y1="256" x2="76" y2="256"/>
+    <line x1="288" y1="256" x2="436" y2="256"/>
+    <line x1="233.4" y1="233.4" x2="120" y2="120"/>
+    <line x1="278.6" y1="278.6" x2="392" y2="392"/>
+    <line x1="278.6" y1="233.4" x2="392" y2="120"/>
+    <line x1="233.4" y1="278.6" x2="120" y2="392"/>
+  </g>
+
+  <!-- Orbital dots -->
+  <g fill="#3b82f6">
+    <circle cx="256" cy="72" r="5" opacity="0.7"/>
+    <circle cx="256" cy="440" r="5" opacity="0.7"/>
+    <circle cx="72" cy="256" r="5" opacity="0.7"/>
+    <circle cx="440" cy="256" r="5" opacity="0.7"/>
+    <circle cx="117" cy="117" r="4" opacity="0.5"/>
+    <circle cx="395" cy="395" r="4" opacity="0.5"/>
+    <circle cx="395" cy="117" r="4" opacity="0.5"/>
+    <circle cx="117" cy="395" r="4" opacity="0.5"/>
+  </g>
+
+  <!-- Leaf / life element inside center -->
+  <g transform="translate(256, 260)">
+    <path d="M0 -6 C-8 -6 -14 0 -14 8 C-14 16 -4 22 0 26 C4 22 14 16 14 8 C14 0 8 -6 0 -6Z"
+      fill="#60a5fa" opacity="0.9"/>
+    <line x1="0" y1="24" x2="0" y2="40" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  </g>
+</svg>
