@@ -9,8 +9,11 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [projectId, setProjectId] = useState('');
   const [priority, setPriority] = useState('medium');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editProjectId, setEditProjectId] = useState<string | null>(null);
   const t = useT();
 
   const load = () => Promise.all([
@@ -20,21 +23,41 @@ export default function Tasks() {
 
   useEffect(() => { load(); }, []);
 
+  const resetForm = () => {
+    setTitle(''); setDescription(''); setProjectId(''); setPriority('medium');
+    setEditId(null); setEditProjectId(null);
+  };
+
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId) return;
-    await api.createTask({ title, project_id: projectId, priority });
-    setTitle('');
+    const data: any = { title, description: description || undefined, project_id: projectId, priority };
+    if (editId) {
+      await api.updateTask(editProjectId!, editId, data);
+    } else {
+      await api.createTask(data);
+    }
+    resetForm();
     load();
   };
 
-  const updateStatus = async (t: any, status: string) => {
-    await api.updateTask(t.project_id, t.id, { status });
+  const fillEdit = (task: any) => {
+    setEditId(task.id);
+    setEditProjectId(task.project_id);
+    setTitle(task.title);
+    setDescription(task.description || '');
+    setProjectId(task.project_id || '');
+    setPriority(task.priority || 'medium');
+  };
+
+  const updateStatus = async (task: any, status: string) => {
+    await api.updateTask(task.project_id, task.id, { status });
     load();
   };
 
   const del = async (t: any) => {
     await api.deleteTask(t.project_id, t.id);
+    if (editId === t.id) resetForm();
     load();
   };
 
@@ -57,21 +80,30 @@ export default function Tasks() {
     <div>
       <h1 className="text-2xl font-bold mb-6 dark:text-gray-100">{t('tasks.title')}</h1>
 
-      <form onSubmit={create} className="flex gap-2 mb-6 flex-wrap">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('tasks.taskTitle')} required
-          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-w-[200px] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
-        <select value={projectId} onChange={(e) => setProjectId(e.target.value)} required
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-          <option value="">{t('tasks.selectProject')}</option>
-          {projects.filter((p) => p.status === 'active').map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-        <select value={priority} onChange={(e) => setPriority(e.target.value)}
-          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-          {priorities.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">{t('common.add')}</button>
+      <form onSubmit={create} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6 space-y-3">
+        <div className="flex gap-2 flex-wrap">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('tasks.taskTitle')} required
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm min-w-[200px] bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} required
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+            <option value="">{t('tasks.selectProject')}</option>
+            {projects.filter((p) => p.status === 'active').map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <select value={priority} onChange={(e) => setPriority(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+            {priorities.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium">
+            {editId ? t('common.update') : t('common.add')}
+          </button>
+          {editId && <button type="button" onClick={resetForm}
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-sm">{t('common.cancel')}</button>}
+        </div>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+          placeholder={t('tasks.description')} rows={2}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none" />
       </form>
 
       <div className="space-y-2">
@@ -81,15 +113,17 @@ export default function Tasks() {
             <div key={task.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {statusDot(task.status)}
-                <div>
-                  <span className={`${task.status === 'done' ? 'line-through text-gray-400 dark:text-gray-500' : 'font-medium dark:text-gray-100'}`}>{task.title}</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-400 dark:text-gray-500">{project?.name}</span>
-                    {priorityBadge(task.priority)}
+                  <div>
+                    <span className={`${task.status === 'done' ? 'line-through text-gray-400 dark:text-gray-500' : 'font-medium dark:text-gray-100'}`}>{task.title}</span>
+                    {task.description && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 line-clamp-2">{task.description}</p>}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{project?.name}</span>
+                      {priorityBadge(task.priority)}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1">
+                  <button onClick={() => fillEdit(task)} className="text-xs text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400">{t('common.edit')}</button>
                 <select value={task.status} onChange={(e) => updateStatus(task, e.target.value)}
                   className="text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                   {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
