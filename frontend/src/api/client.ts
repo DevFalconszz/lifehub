@@ -30,7 +30,14 @@ async function request(path: string, options: RequestInit = {}) {
   }
 
   if (res.status === 204) return null;
-  return res.json();
+
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Unexpected response (${res.status})`);
+  }
 }
 
 export const api = {
