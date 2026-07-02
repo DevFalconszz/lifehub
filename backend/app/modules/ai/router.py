@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.core.auth.dependencies import get_current_user
+from app.core.auth.dependencies import get_current_user, get_token
 from app.modules.ai import crud
 from app.modules.ai.providers.registry import get_provider_registry
 from app.modules.ai.service import ChatService
@@ -31,11 +31,11 @@ class CreateSessionBody(BaseModel):
     title: str = 'New Chat'
 
 
-def get_chat_service(user: dict = Depends(get_current_user)) -> ChatService:
-    return ChatService(
-        user=user,
-        provider_registry=get_provider_registry(),
-    )
+def get_chat_service(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+) -> ChatService:
+    return ChatService(user=user, token=token, provider_registry=get_provider_registry())
 
 
 @router.post('/chat')
@@ -71,24 +71,29 @@ async def chat(
 
 
 @router.get('/sessions')
-async def list_sessions(user: dict = Depends(get_current_user)):
-    return await crud.list_sessions(user['id'])
+async def list_sessions(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+):
+    return await crud.list_sessions(user['id'], token=token)
 
 
 @router.post('/sessions')
 async def create_session(
     body: CreateSessionBody = CreateSessionBody(),
     user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
 ):
-    return await crud.create_session(user['id'], body.title)
+    return await crud.create_session(user['id'], body.title, token=token)
 
 
 @router.get('/sessions/{session_id}')
 async def get_session_by_id(
     session_id: str,
     user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
 ):
-    session = await crud.get_session_by_id(session_id, user['id'])
+    session = await crud.get_session_by_id(session_id, user['id'], token=token)
     if not session:
         raise HTTPException(404, 'Session not found')
     return session
@@ -98,8 +103,9 @@ async def get_session_by_id(
 async def delete_session(
     session_id: str,
     user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
 ):
-    deleted = await crud.delete_session(session_id, user['id'])
+    deleted = await crud.delete_session(session_id, user['id'], token=token)
     if not deleted:
         raise HTTPException(404, 'Session not found')
 
@@ -109,14 +115,15 @@ async def add_message(
     session_id: str,
     body: ChatRequest,
     user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
 ):
-    session = await crud.get_session_by_id(session_id, user['id'])
+    session = await crud.get_session_by_id(session_id, user['id'], token=token)
     if not session:
         raise HTTPException(404, 'Session not found')
 
     last_msg = body.messages[-1] if body.messages else None
     if last_msg and last_msg.get('role') in ('user', 'assistant'):
-        return await crud.add_message(session_id, last_msg['role'], last_msg.get('content'))
+        return await crud.add_message(session_id, last_msg['role'], last_msg.get('content'), token=token)
 
     raise HTTPException(400, 'No valid message to save')
 
@@ -127,7 +134,10 @@ async def list_providers():
 
 
 @router.get('/tools')
-async def list_tools(user: dict = Depends(get_current_user)):
-    registry = build_tool_registry(user['id'])
+async def list_tools(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+):
+    registry = build_tool_registry(user['id'], token=token)
     tools = registry.build_openai_tools()
     return {'data': tools}

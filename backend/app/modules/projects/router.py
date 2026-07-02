@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.core.auth.dependencies import get_current_user
+from app.core.auth.dependencies import get_current_user, get_token
 from app.modules.projects.service import ProjectService
 from app.modules.projects.types import ProjectCreate, ProjectUpdate, TaskCreate, TaskUpdate
 
@@ -8,8 +8,11 @@ router = APIRouter(prefix='/api/projects', tags=['projects'])
 task_router = APIRouter(prefix='/api/tasks', tags=['tasks'])
 
 
-def get_service(user: dict = Depends(get_current_user)) -> ProjectService:
-    return ProjectService(user_id=user['id'])
+def get_service(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+) -> ProjectService:
+    return ProjectService(user_id=user['id'], token=token)
 
 
 @router.get('')

@@ -9,14 +9,14 @@ from app.modules.calendar.service import CalendarService
 from app.modules.readings.service import ReadingService
 
 
-def build_tool_registry(user_id: str) -> ToolRegistry:
+def build_tool_registry(user_id: str, token: str | None = None) -> ToolRegistry:
     registry = ToolRegistry()
 
-    ps = ProjectService(user_id=user_id)
-    ns = NoteService(user_id=user_id)
-    fs = FinanceService(user_id=user_id)
-    cs = CalendarService(user_id=user_id)
-    rs = ReadingService(user_id=user_id)
+    ps = ProjectService(user_id=user_id, token=token)
+    ns = NoteService(user_id=user_id, token=token)
+    fs = FinanceService(user_id=user_id, token=token)
+    cs = CalendarService(user_id=user_id, token=token)
+    rs = ReadingService(user_id=user_id, token=token)
 
     registry.register(Tool(
         name='create_project',

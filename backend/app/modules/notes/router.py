@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends
 
-from app.core.auth.dependencies import get_current_user
+from app.core.auth.dependencies import get_current_user, get_token
 from app.modules.notes.service import NoteService
 from app.modules.notes.types import NoteCreate, NoteUpdate
 
 router = APIRouter(prefix='/api/notes', tags=['notes'])
 
 
-def get_service(user: dict = Depends(get_current_user)) -> NoteService:
-    return NoteService(user_id=user['id'])
+def get_service(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+) -> NoteService:
+    return NoteService(user_id=user['id'], token=token)
 
 
 @router.get('')

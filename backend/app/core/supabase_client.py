@@ -8,47 +8,67 @@ from app.config import get_settings
 
 settings = get_settings()
 
-_client: AsyncClient | None = None
+_admin_client: AsyncClient | None = None
+_user_clients: dict[str, AsyncClient] = {}
 
 
 async def get_supabase() -> AsyncClient:
-    global _client
-    if _client is None:
-        _client = await create_async_client(
+    global _admin_client
+    if _admin_client is None:
+        _admin_client = await create_async_client(
             settings.supabase_url,
             settings.supabase_service_key,
         )
-    return _client
+    return _admin_client
+
+
+async def get_admin_client() -> AsyncClient:
+    return await get_supabase()
+
+
+async def get_user_client(token: str | None = None) -> AsyncClient:
+    if not token:
+        return await get_supabase()
+    if token not in _user_clients:
+        _user_clients[token] = await create_async_client(
+            settings.supabase_url,
+            settings.supabase_anon_key,
+        )
+        await _user_clients[token].auth.set_session(token, '')
+    return _user_clients[token]
 
 
 async def close_supabase():
-    global _client
-    if _client:
+    global _admin_client
+    for client in _user_clients.values():
         try:
-            await _client.postgrest.aclose()
-            await _client.auth.aclose()
+            await client.aclose()
         except Exception:
             pass
-        _client = None
+    _user_clients.clear()
+    if _admin_client:
+        try:
+            await _admin_client.aclose()
+        except Exception:
+            pass
+        _admin_client = None
 
 
 class SupabaseService:
-    def __init__(self, user_id: str | None = None):
+    def __init__(self, user_id: str | None = None, token: str | None = None):
         self._user_id = user_id
+        self._token = token
+
+    async def _get_client(self) -> AsyncClient:
+        return await get_user_client(self._token)
 
     async def _table(self, name: str) -> Any:
-        client = await get_supabase()
+        client = await self._get_client()
         return client.table(name)
-
-    def _user_filter(self, query: Any) -> Any:
-        if self._user_id:
-            return query.eq('user_id', self._user_id)
-        return query
 
     async def list_all(self, table: str, filters: dict | None = None, order: str | None = None, limit: int | None = None) -> list[dict]:
         q = await self._table(table)
         q = q.select('*')
-        q = self._user_filter(q)
         if filters:
             for k, v in filters.items():
                 q = q.eq(k, v)
@@ -62,8 +82,6 @@ class SupabaseService:
     async def get_by_id(self, table: str, id: str) -> dict | None:
         q = await self._table(table)
         q = q.select('*').eq('id', id)
-        if self._user_id:
-            q = q.eq('user_id', self._user_id)
         result = await q.execute()
         return result.data[0] if result.data else None
 
@@ -75,8 +93,6 @@ class SupabaseService:
     async def update(self, table: str, id: str, data: dict) -> dict:
         q = await self._table(table)
         q = q.update(data).eq('id', id)
-        if self._user_id:
-            q = q.eq('user_id', self._user_id)
         result = await q.execute()
         return result.data[0] if result.data else None
 
@@ -84,28 +100,4 @@ class SupabaseService:
         from datetime import datetime, timezone
         q = await self._table(table)
         q = q.update({'deleted_at': datetime.now(timezone.utc).isoformat()}).eq('id', id)
-        if self._user_id:
-            q = q.eq('user_id', self._user_id)
         await q.execute()
-
-    async def hard_delete(self, table: str, id: str) -> None:
-        q = await self._table(table)
-        q = q.delete().eq('id', id)
-        if self._user_id:
-            q = q.eq('user_id', self._user_id)
-        await q.execute()
-
-    async def count(self, table: str, filters: dict | None = None) -> int:
-        q = await self._table(table)
-        q = q.select('*', count='exact')
-        q = self._user_filter(q)
-        if filters:
-            for k, v in filters.items():
-                q = q.eq(k, v)
-        result = await q.execute()
-        return result.count
-
-    async def raw(self, query: str) -> list[dict]:
-        client = await get_supabase()
-        result = await client.rpc('raw_sql', {'query': query}).execute()
-        return result.data

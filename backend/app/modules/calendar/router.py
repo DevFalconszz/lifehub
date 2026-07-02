@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends
 
-from app.core.auth.dependencies import get_current_user
+from app.core.auth.dependencies import get_current_user, get_token
 from app.modules.calendar.service import CalendarService
 from app.modules.calendar.types import EventCreate, EventUpdate
 
 router = APIRouter(prefix='/api/calendar', tags=['calendar'])
 
 
-def get_service(user: dict = Depends(get_current_user)) -> CalendarService:
-    return CalendarService(user_id=user['id'])
+def get_service(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+) -> CalendarService:
+    return CalendarService(user_id=user['id'], token=token)
 
 
 @router.get('/events')

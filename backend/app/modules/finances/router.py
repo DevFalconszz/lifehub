@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.core.auth.dependencies import get_current_user
+from app.core.auth.dependencies import get_current_user, get_token
 from app.modules.finances.service import FinanceService
 from app.modules.finances.types import TransactionCreate, BudgetCreate
 
 router = APIRouter(prefix='/api/finances', tags=['finances'])
 
 
-def get_service(user: dict = Depends(get_current_user)) -> FinanceService:
-    return FinanceService(user_id=user['id'])
+def get_service(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+) -> FinanceService:
+    return FinanceService(user_id=user['id'], token=token)
 
 
 @router.get('/transactions')

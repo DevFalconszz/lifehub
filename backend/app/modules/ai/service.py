@@ -45,11 +45,13 @@ class ChatService:
     def __init__(
         self,
         user: dict,
+        token: str,
         provider_registry: ProviderRegistry | None = None,
     ):
         self.user = user
+        self.token = token
         self.provider_registry = provider_registry
-        self.tool_registry = build_tool_registry(user['id'])
+        self.tool_registry = build_tool_registry(user['id'], token=token)
 
     async def chat(
         self,

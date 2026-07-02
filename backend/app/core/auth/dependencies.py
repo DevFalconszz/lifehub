@@ -1,21 +1,23 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.auth.service import decode_access_token
-from app.core.supabase_client import get_supabase
-
 security = HTTPBearer()
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    payload = decode_access_token(credentials.credentials)
-    if not payload:
+async def get_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    return credentials.credentials
+
+
+async def get_current_user(token: str = Depends(get_token)) -> dict:
+    from app.core.supabase_client import get_user_client
+    client = await get_user_client(token)
+    try:
+        result = await client.auth.get_user()
+        user = result.user
+        return {
+            'id': user.id,
+            'name': user.user_metadata.get('name', ''),
+            'email': user.email,
+        }
+    except Exception:
         raise HTTPException(status_code=401, detail='Invalid token')
-
-    supabase = await get_supabase()
-    result = await supabase.table('users').select('*').eq('id', payload.sub).execute()
-    if not result.data:
-        raise HTTPException(status_code=401, detail='User not found')
-
-    user = result.data[0]
-    return user

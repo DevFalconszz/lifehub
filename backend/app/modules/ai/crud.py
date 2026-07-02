@@ -3,11 +3,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from app.core.supabase_client import get_supabase
+from app.core.supabase_client import get_user_client
 
 
-async def create_session(user_id: str, title: str = 'New Chat') -> dict:
-    supabase = await get_supabase()
+async def create_session(user_id: str, title: str = 'New Chat', token: str | None = None) -> dict:
+    supabase = await get_user_client(token)
     now = datetime.now(timezone.utc).isoformat()
     data = {
         'id': str(uuid.uuid4()),
@@ -20,14 +20,14 @@ async def create_session(user_id: str, title: str = 'New Chat') -> dict:
     return result.data[0]
 
 
-async def get_session_by_id(session_id: str, user_id: str) -> dict | None:
-    supabase = await get_supabase()
+async def get_session_by_id(session_id: str, user_id: str, token: str | None = None) -> dict | None:
+    supabase = await get_user_client(token)
     result = await supabase.table('chat_sessions').select('*,chat_messages(*)').eq('id', session_id).eq('user_id', user_id).execute()
     return result.data[0] if result.data else None
 
 
-async def list_sessions(user_id: str) -> list[dict]:
-    supabase = await get_supabase()
+async def list_sessions(user_id: str, token: str | None = None) -> list[dict]:
+    supabase = await get_user_client(token)
     result = await supabase.table('chat_sessions').select('*,chat_messages(count)').eq('user_id', user_id).order('updated_at', desc=True).execute()
     sessions = []
     for s in result.data or []:
@@ -41,8 +41,8 @@ async def list_sessions(user_id: str) -> list[dict]:
     return sessions
 
 
-async def add_message(session_id: str, role: str, content: str | None) -> dict:
-    supabase = await get_supabase()
+async def add_message(session_id: str, role: str, content: str | None, token: str | None = None) -> dict:
+    supabase = await get_user_client(token)
     now = datetime.now(timezone.utc).isoformat()
     msg_data = {
         'id': str(uuid.uuid4()),
@@ -56,8 +56,8 @@ async def add_message(session_id: str, role: str, content: str | None) -> dict:
     return msg_result.data[0]
 
 
-async def delete_session(session_id: str, user_id: str) -> bool:
-    supabase = await get_supabase()
+async def delete_session(session_id: str, user_id: str, token: str | None = None) -> bool:
+    supabase = await get_user_client(token)
     await supabase.table('chat_messages').delete().eq('session_id', session_id).execute()
     result = await supabase.table('chat_sessions').delete().eq('id', session_id).eq('user_id', user_id).execute()
     return len(result.data) > 0

@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends
 
-from app.core.auth.dependencies import get_current_user
+from app.core.auth.dependencies import get_current_user, get_token
 from app.modules.readings.service import ReadingService
 from app.modules.readings.types import ReadingCreate, ReadingUpdate
 
 router = APIRouter(prefix='/api/readings', tags=['readings'])
 
 
-def get_service(user: dict = Depends(get_current_user)) -> ReadingService:
-    return ReadingService(user_id=user['id'])
+def get_service(
+    user: dict = Depends(get_current_user),
+    token: str = Depends(get_token),
+) -> ReadingService:
+    return ReadingService(user_id=user['id'], token=token)
 
 
 @router.get('')
