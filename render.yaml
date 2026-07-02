@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: lifehub-api
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run.py
+    healthCheckPath: /api/health
+    envVars:
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBncXdqb291Y2JvcmNkcXdzb3VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjYyNzksImV4cCI6MjA5ODUwMjI3OX0.-rkqwEcXgQm10Lwt_dtNVFVlj9fzXctmvmYnCLvZ2dg
+      - key: SUPABASE_URL
+        value: https://pgqwjooucborcdqwsoui.supabase.co
