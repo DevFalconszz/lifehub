@@ -7,10 +7,9 @@ class Settings(BaseSettings):
     app_version: str = '0.1.0'
     debug: bool = True
 
-    database_url: str = 'postgresql+asyncpg://lifehub:lifehub@localhost:5433/lifehub'
-    database_url_sync: str = 'postgresql://lifehub:lifehub@localhost:5433/lifehub'
-
-    redis_url: str = 'redis://localhost:6379/1'
+    supabase_url: str = 'https://pgqwjooucborcdqwsoui.supabase.co'
+    supabase_anon_key: str = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBncXdqb291Y2JvcmNkcXdzb3VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MjYyNzksImV4cCI6MjA5ODUwMjI3OX0.-rkqwEcXgQm10Lwt_dtNVFVlj9fzXctmvmYnCLvZ2dg'
+    supabase_service_key: str = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBncXdqb291Y2JvcmNkcXdzb3VpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjkyNjI3OSwiZXhwIjoyMDk4NTAyMjc5fQ.ee8n4BeRnlGUVO-HmVLMBlBR9O6sSVX-IfUFLSovjNc'
 
     secret_key: str = 'change-me-in-production-lifehub-secret-key'
     algorithm: str = 'HS256'
@@ -18,7 +17,7 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ['http://localhost:5173', 'http://localhost:3000']
 
-    model_config = {'env_file': '.env', 'env_file_encoding': 'utf-8'}
+    model_config = {'env_file': '.env', 'env_file_encoding': 'utf-8', 'extra': 'ignore'}
 
 
 @lru_cache

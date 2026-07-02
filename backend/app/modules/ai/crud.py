@@ -1,86 +1,63 @@
 from __future__ import annotations
 
-from uuid import UUID
+import uuid
+from datetime import datetime, timezone
 
-from sqlalchemy import func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-
-from app.core.auth.models import User
-from app.modules.ai.models import ChatMessage, ChatSession
-from app.modules.ai.schemas import ChatSessionSummary
+from app.core.supabase_client import get_supabase
 
 
-async def create_session(session: AsyncSession, user: User, title: str = 'New Chat') -> ChatSession:
-    cs = ChatSession(user_id=user.id, title=title)
-    session.add(cs)
-    await session.commit()
-
-    result = await session.execute(
-        select(ChatSession)
-        .options(selectinload(ChatSession.messages))
-        .where(ChatSession.id == cs.id)
-    )
-    return result.scalar_one()
-
-
-async def get_session_by_id(session: AsyncSession, session_id: UUID, user: User) -> ChatSession | None:
-    result = await session.execute(
-        select(ChatSession)
-        .options(selectinload(ChatSession.messages))
-        .where(ChatSession.id == session_id, ChatSession.user_id == user.id)
-    )
-    return result.scalar_one_or_none()
+async def create_session(user_id: str, title: str = 'New Chat') -> dict:
+    supabase = await get_supabase()
+    now = datetime.now(timezone.utc).isoformat()
+    data = {
+        'id': str(uuid.uuid4()),
+        'user_id': user_id,
+        'title': title,
+        'created_at': now,
+        'updated_at': now,
+    }
+    result = await supabase.table('chat_sessions').insert(data).execute()
+    return result.data[0]
 
 
-async def list_sessions(session: AsyncSession, user: User) -> list[ChatSessionSummary]:
-    result = await session.execute(
-        select(
-            ChatSession.id,
-            ChatSession.title,
-            ChatSession.created_at,
-            ChatSession.updated_at,
-            func.count(ChatMessage.id).label('message_count'),
-        )
-        .outerjoin(ChatMessage, ChatMessage.session_id == ChatSession.id)
-        .where(ChatSession.user_id == user.id)
-        .group_by(ChatSession.id)
-        .order_by(ChatSession.updated_at.desc())
-    )
-    return [
-        ChatSessionSummary(
-            id=row.id,
-            title=row.title,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
-            message_count=row.message_count,
-        )
-        for row in result.all()
-    ]
+async def get_session_by_id(session_id: str, user_id: str) -> dict | None:
+    supabase = await get_supabase()
+    result = await supabase.table('chat_sessions').select('*,chat_messages(*)').eq('id', session_id).eq('user_id', user_id).execute()
+    return result.data[0] if result.data else None
 
 
-async def add_message(
-    session: AsyncSession,
-    session_id: UUID,
-    role: str,
-    content: str | None,
-) -> ChatMessage:
-    msg = ChatMessage(session_id=session_id, role=role, content=content)
-    session.add(msg)
-    await session.execute(
-        update(ChatSession)
-        .where(ChatSession.id == session_id)
-        .values(updated_at=func.now())
-    )
-    await session.commit()
-    await session.refresh(msg)
-    return msg
+async def list_sessions(user_id: str) -> list[dict]:
+    supabase = await get_supabase()
+    result = await supabase.table('chat_sessions').select('*,chat_messages(count)').eq('user_id', user_id).order('updated_at', desc=True).execute()
+    sessions = []
+    for s in result.data or []:
+        sessions.append({
+            'id': s['id'],
+            'title': s['title'],
+            'created_at': s['created_at'],
+            'updated_at': s['updated_at'],
+            'message_count': s.get('chat_messages', [{}])[0].get('count', 0) if s.get('chat_messages') else 0,
+        })
+    return sessions
 
 
-async def delete_session(session: AsyncSession, session_id: UUID, user: User) -> bool:
-    cs = await get_session_by_id(session, session_id, user)
-    if not cs:
-        return False
-    await session.delete(cs)
-    await session.commit()
-    return True
+async def add_message(session_id: str, role: str, content: str | None) -> dict:
+    supabase = await get_supabase()
+    now = datetime.now(timezone.utc).isoformat()
+    msg_data = {
+        'id': str(uuid.uuid4()),
+        'session_id': session_id,
+        'role': role,
+        'content': content,
+        'created_at': now,
+    }
+    msg_result = await supabase.table('chat_messages').insert(msg_data).execute()
+    await supabase.table('chat_sessions').update({'updated_at': now}).eq('id', session_id).execute()
+    return msg_result.data[0]
+
+
+async def delete_session(session_id: str, user_id: str) -> bool:
+    supabase = await get_supabase()
+    await supabase.table('chat_messages').delete().eq('session_id', session_id).execute()
+    result = await supabase.table('chat_sessions').delete().eq('id', session_id).eq('user_id', user_id).execute()
+    return len(result.data) > 0

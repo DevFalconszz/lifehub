@@ -1,66 +1,44 @@
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from __future__ import annotations
 
-from app.core.auth.models import User
-from app.core.exceptions import NotFoundError
-from app.modules.readings.models import ReadingItem
-from app.modules.readings.types import ReadingCreate, ReadingUpdate
+import uuid
+from datetime import datetime, timezone
+
+from app.core.supabase_client import SupabaseService
 
 
-class ReadingService:
-    def __init__(self, session: AsyncSession, user: User):
-        self.session = session
-        self.user = user
-
-    async def list_items(
-        self, status: str | None = None, type: str | None = None,
-    ) -> list[ReadingItem]:
-        query = select(ReadingItem).where(
-            ReadingItem.user_id == self.user.id,
-            ReadingItem.deleted_at.is_(None),
-        )
+class ReadingService(SupabaseService):
+    async def list_items(self, status: str | None = None, type: str | None = None) -> list[dict]:
+        filters = {}
         if status:
-            query = query.where(ReadingItem.status == status)
+            filters['status'] = status
         if type:
-            query = query.where(ReadingItem.type == type)
-        query = query.order_by(ReadingItem.priority.desc(), ReadingItem.created_at.desc())
-        result = await self.session.execute(query)
-        return result.scalars().all()
+            filters['type'] = type
+        return await self.list_all('reading_items', filters=filters, order='created_at')
 
-    async def get_item(self, item_id: str) -> ReadingItem:
-        result = await self.session.execute(
-            select(ReadingItem).where(
-                ReadingItem.id == item_id,
-                ReadingItem.user_id == self.user.id,
-                ReadingItem.deleted_at.is_(None),
-            ),
-        )
-        item = result.scalar_one_or_none()
+    async def get_item(self, item_id: str) -> dict:
+        item = await self.get_by_id('reading_items', item_id)
         if not item:
+            from app.core.exceptions import NotFoundError
             raise NotFoundError('Reading item not found')
         return item
 
-    async def create_item(self, data: ReadingCreate) -> ReadingItem:
-        item = ReadingItem(
-            title=data.title, url=data.url, author=data.author,
-            type=data.type, status=data.status, notes=data.notes,
-            priority=data.priority, user_id=self.user.id,
-        )
-        self.session.add(item)
-        await self.session.flush()
-        await self.session.refresh(item)
-        return item
+    async def create_item(self, data: dict) -> dict:
+        now = datetime.now(timezone.utc).isoformat()
+        return await self.create('reading_items', {
+            'id': str(uuid.uuid4()),
+            'user_id': self._user_id,
+            'created_at': now,
+            'updated_at': now,
+            **data,
+        })
 
-    async def update_item(self, item_id: str, data: ReadingUpdate) -> ReadingItem:
-        item = await self.get_item(item_id)
-        update_data = data.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(item, key, value)
-        await self.session.flush()
-        await self.session.refresh(item)
-        return item
+    async def update_item(self, item_id: str, data: dict) -> dict:
+        data['updated_at'] = datetime.now(timezone.utc).isoformat()
+        result = await self.update('reading_items', item_id, data)
+        if not result:
+            from app.core.exceptions import NotFoundError
+            raise NotFoundError('Reading item not found')
+        return result
 
     async def delete_item(self, item_id: str) -> None:
-        item = await self.get_item(item_id)
-        item.deleted_at = func.now()
-        await self.session.flush()
+        await self.soft_delete('reading_items', item_id)

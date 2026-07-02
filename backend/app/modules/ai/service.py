@@ -3,9 +3,6 @@ from __future__ import annotations
 import json
 from typing import Any, AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.auth.models import User
 from app.modules.ai.providers.registry import ProviderRegistry
 from app.modules.ai.tools.registry import ToolRegistry
 from app.modules.ai.tools.tool_factory import build_tool_registry
@@ -47,14 +44,12 @@ def _meta_tools(tool_registry: ToolRegistry) -> list[dict]:
 class ChatService:
     def __init__(
         self,
-        session: AsyncSession,
-        user: User,
+        user: dict,
         provider_registry: ProviderRegistry | None = None,
     ):
-        self.session = session
         self.user = user
         self.provider_registry = provider_registry
-        self.tool_registry = build_tool_registry(session, user)
+        self.tool_registry = build_tool_registry(user['id'])
 
     async def chat(
         self,

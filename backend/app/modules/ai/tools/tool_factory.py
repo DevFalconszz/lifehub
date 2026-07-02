@@ -1,39 +1,23 @@
 from __future__ import annotations
 
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.database import get_session
-from app.core.auth.dependencies import get_current_user
-from app.core.auth.models import User
-from app.modules.ai.providers.registry import ProviderRegistry, get_provider_registry
 from app.modules.ai.tools.base import Tool
 from app.modules.ai.tools.registry import ToolRegistry
 from app.modules.projects.service import ProjectService
-from app.modules.projects.types import ProjectCreate, TaskCreate
 from app.modules.notes.service import NoteService
-from app.modules.notes.types import NoteCreate
 from app.modules.finances.service import FinanceService
-from app.modules.finances.types import TransactionCreate
 from app.modules.calendar.service import CalendarService
-from app.modules.calendar.types import EventCreate
 from app.modules.readings.service import ReadingService
-from app.modules.readings.types import ReadingCreate
 
 
-def build_tool_registry(
-    session: AsyncSession,
-    user: User,
-) -> ToolRegistry:
+def build_tool_registry(user_id: str) -> ToolRegistry:
     registry = ToolRegistry()
 
-    ps = ProjectService(session, user)
-    ns = NoteService(session, user)
-    fs = FinanceService(session, user)
-    cs = CalendarService(session, user)
-    rs = ReadingService(session, user)
+    ps = ProjectService(user_id=user_id)
+    ns = NoteService(user_id=user_id)
+    fs = FinanceService(user_id=user_id)
+    cs = CalendarService(user_id=user_id)
+    rs = ReadingService(user_id=user_id)
 
-    # ── Projects ──
     registry.register(Tool(
         name='create_project',
         description='Create a new project',
@@ -48,7 +32,7 @@ def build_tool_registry(
             'required': ['name'],
         },
         category='projects',
-        execute=lambda **kw: ps.create_project(ProjectCreate(**kw)),
+        execute=lambda **kw: ps.create_project(kw),
     ))
 
     registry.register(Tool(
@@ -62,7 +46,6 @@ def build_tool_registry(
         execute=lambda **kw: ps.list_projects(),
     ))
 
-    # ── Tasks ──
     registry.register(Tool(
         name='create_task',
         description='Create a new task',
@@ -78,7 +61,7 @@ def build_tool_registry(
             'required': ['title'],
         },
         category='tasks',
-        execute=lambda **kw: ps.create_task(TaskCreate(**kw)),
+        execute=lambda **kw: ps.create_task(kw),
     ))
 
     registry.register(Tool(
@@ -105,10 +88,9 @@ def build_tool_registry(
             'required': ['task_id'],
         },
         category='tasks',
-        execute=lambda task_id, **kw: ps.update_task(task_id, type('U', (), {'model_dump': lambda: {'status': 'done'}})()),
+        execute=lambda task_id, **kw: ps.update_task(task_id, {'status': 'done'}),
     ))
 
-    # ── Notes ──
     registry.register(Tool(
         name='create_note',
         description='Create a new note',
@@ -122,7 +104,7 @@ def build_tool_registry(
             'required': ['title'],
         },
         category='notes',
-        execute=lambda **kw: ns.create_note(NoteCreate(**kw)),
+        execute=lambda **kw: ns.create_note(kw),
     ))
 
     registry.register(Tool(
@@ -133,7 +115,6 @@ def build_tool_registry(
         execute=lambda **kw: ns.list_notes(),
     ))
 
-    # ── Finances ──
     registry.register(Tool(
         name='add_transaction',
         description='Record a financial transaction',
@@ -149,7 +130,7 @@ def build_tool_registry(
             'required': ['amount', 'type', 'category', 'date'],
         },
         category='finances',
-        execute=lambda **kw: fs.create_transaction(TransactionCreate(**kw)),
+        execute=lambda **kw: fs.create_transaction(kw),
     ))
 
     registry.register(Tool(
@@ -167,7 +148,6 @@ def build_tool_registry(
         execute=lambda **kw: fs.get_summary(**kw),
     ))
 
-    # ── Calendar ──
     registry.register(Tool(
         name='create_event',
         description='Create a calendar event',
@@ -182,10 +162,9 @@ def build_tool_registry(
             'required': ['title', 'start_at'],
         },
         category='calendar',
-        execute=lambda **kw: cs.create_event(EventCreate(**kw)),
+        execute=lambda **kw: cs.create_event(kw),
     ))
 
-    # ── Readings ──
     registry.register(Tool(
         name='add_reading',
         description='Add a book/article/link to your reading list',
@@ -201,7 +180,7 @@ def build_tool_registry(
             'required': ['title'],
         },
         category='readings',
-        execute=lambda **kw: rs.create_item(ReadingCreate(**kw)),
+        execute=lambda **kw: rs.create_item(kw),
     ))
 
     return registry
