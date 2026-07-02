@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         'http://localhost:5173',
         'http://localhost:3000',
-        'https://lifehub-frontend.vercel.app',
-        'https://lifehub-frontend-git-main-sua-conta.vercel.app',
+        'https://frontend-gkotyiz7g-vagettidevs-projects.vercel.app',
+        'https://frontend-blond-iota-37.vercel.app',
     ]
 
     model_config = {'env_file': '.env', 'env_file_encoding': 'utf-8', 'extra': 'ignore'}
