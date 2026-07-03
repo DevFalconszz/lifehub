@@ -8,17 +8,15 @@ export default function Dashboard() {
   const t = useT();
 
   useEffect(() => {
-    Promise.all([
-      api.listProjects(),
-      api.listTasks(),
-      api.listNotes(),
-      api.listTransactions('month=6&year=2026'),
-      api.listEvents(),
-      api.listReadings(),
-      api.getFinanceSummary(6, 2026).catch(() => null),
-    ]).then(([projects, tasks, notes, transactions, events, readings, summary]) => {
-      setData({ projects, tasks, notes, transactions, events, readings, summary });
-    });
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+
+    api.getDashboardData(currentMonth, currentYear)
+      .then((res) => {
+        if (res) setData(res);
+      })
+      .catch((err) => console.error("Failed to load dashboard data", err));
   }, []);
 
   const cards = [

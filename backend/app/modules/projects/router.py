@@ -18,12 +18,15 @@ def get_service(
 @router.get('')
 async def list_projects(service: ProjectService = Depends(get_service)):
     projects = await service.list_projects()
-    result = []
+    tasks = await service.list_tasks()
+
+    from collections import Counter
+    task_counts = Counter(t['project_id'] for t in tasks if t.get('project_id'))
+
     for p in projects:
-        tasks = await service.list_tasks(project_id=p['id'])
-        p['task_count'] = len(tasks)
-        result.append(p)
-    return {'data': result}
+        p['task_count'] = task_counts.get(p['id'], 0)
+
+    return {'data': projects}
 
 
 @router.get('/{project_id}')

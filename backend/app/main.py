@@ -38,6 +38,9 @@ async def app_error_handler(request: Request, exc: AppError):
 
 app.include_router(auth_router, prefix='/api')
 
+from app.modules.dashboard.router import router as dashboard_router
+app.include_router(dashboard_router)
+
 from app.modules.projects.router import router as projects_router, task_router
 app.include_router(projects_router)
 app.include_router(task_router)

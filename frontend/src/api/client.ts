@@ -48,6 +48,9 @@ export const api = {
     request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   me: () => request('/auth/me'),
 
+  // Dashboard
+  getDashboardData: (month: number, year: number) => request(`/dashboard?month=${month}&year=${year}`),
+
   // Projects
   listProjects: () => request('/projects'),
   createProject: (data: any) => request('/projects', { method: 'POST', body: JSON.stringify(data) }),

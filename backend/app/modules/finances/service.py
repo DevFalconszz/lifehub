@@ -11,16 +11,6 @@ class FinanceService(SupabaseService):
         self, type: str | None = None, category: str | None = None,
         month: int | None = None, year: int | None = None, limit: int = 50,
     ) -> list[dict]:
-        filters = {}
-        if type:
-            filters['type'] = type
-        if category:
-            filters['category'] = category
-        if month:
-            filters['month'] = month
-        if year:
-            filters['year'] = year
-
         q = await self._table('transactions')
         q = q.select('*')
         q = self._user_filter(q)
@@ -28,22 +18,26 @@ class FinanceService(SupabaseService):
             q = q.eq('type', type)
         if category:
             q = q.eq('category', category)
-        if month:
-            from sqlalchemy import extract
-            # We'll filter in Python for month/year since supabase doesn't support extract
-            pass
-        if year:
-            pass
-        q = q.order('date', desc=True).limit(limit)
+        
+        # Apply date filters at database level for indexing and performance
+        if month and year:
+            start_date = f"{year}-{month:02d}-01T00:00:00"
+            if month == 12:
+                end_date = f"{year + 1}-01-01T00:00:00"
+            else:
+                end_date = f"{year}-{month + 1:02d}-01T00:00:00"
+            q = q.gte('date', start_date).lt('date', end_date)
+        elif year:
+            q = q.gte('date', f"{year}-01-01T00:00:00").lt('date', f"{year + 1}-01-01T00:00:00")
+
+        q = q.order('date', desc=True)
+        
+        # Only limit if we are not fetching a full month/year report (where totals matter)
+        if not (month or year):
+            q = q.limit(limit)
+            
         result = await q.execute()
-        data = result.data or []
-
-        if month:
-            data = [t for t in data if self._get_month(t.get('date', '')) == month]
-        if year:
-            data = [t for t in data if self._get_year(t.get('date', '')) == year]
-
-        return data
+        return result.data or []
 
     def _get_month(self, date_str: str) -> int:
         try:
